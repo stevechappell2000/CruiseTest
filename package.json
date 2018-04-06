@@ -1,0 +1,29 @@
+{
+  "name": "cruisehome3",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "axios": "^0.18.0",
+    "bootstrap": "^4.0.0",
+    "bootstrap-css-only": "^4.0.0",
+    "codemirror": "^5.35.0",
+    "font-awesome": "^4.7.0",
+    "jsoneditor-for-react": "0.0.1",
+    "react": "^16.2.0",
+    "react-bootstrap": "^0.32.1",
+    "react-codemirror2": "^4.2.1",
+    "react-combobox": "^0.1.2",
+    "react-dom": "^16.2.0",
+    "react-dropdown": "^1.4.0",
+    "react-jsonschema-form": "^1.0.2",
+    "react-scripts": "1.1.1",
+    "react-select": "^2.0.0-alpha.8"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "webpack",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  },
+  "devDependencies": {}
+}
