@@ -31,7 +31,8 @@ export default class CruiseS3 extends React.Component {
             codeMirrorData: this.props.data,
             plugInData:[],
             stageButton: true,
-            reloadbutton: true
+            reloadbutton: true,
+            app:{}
 
           };
         this.clearButtonClicked = this.clearButtonClicked.bind(this);
@@ -59,25 +60,101 @@ export default class CruiseS3 extends React.Component {
         this.handlePlugInChange = this.handlePlugInChange.bind(this);
         this.handlePlugInActionChange = this.handlePlugInActionChange.bind(this);
         this.handlePlugInParamChange = this.handlePlugInParamChange.bind(this);
-
+        
+        this.displayCodeButtonClicked = this.displayCodeButtonClicked.bind(this);
+        this.loadCodeButtonClicked = this.loadCodeButtonClicked.bind(this);
+        this.firstCodeChange = this.firstCodeChange.bind(this);
+        
+        this.handlePlugSendJson = this.handlePlugSendJson.bind(this);
+        this.handleJsonEditorChange = this.handleJsonEditorChange.bind(this);
         let req = this.getScript("bucketList", {region:this.props.Region});
         let reqPlugin = this.getScript("plugIn", {});
 
         server.postRequest(this.props.s3URL ,req, this.handleBucketResponse, this.handleBucketResponseError);
         server.postRequest(this.props.s3URL ,reqPlugin, this.handlePluginResponse, this.handlePluginResponseError);
     }
+    firstCodeChange(value){
+        /*this.setState({
+            codeMirrorData: value
+        }, function () {
+            //console.log("Plugin Data Loaded:"+this.state.plugInData.length);
+        });*/
+    }
+    displayCodeButtonClicked(evt){
+        this.setState({
+            codeMirrorData: this.state.jsonData
+        }, function () {
+            //console.log("Plugin Data Loaded:"+this.state.plugInData.length);
+        });
+    }
+    loadCodeButtonClicked(evt){
+        this.setState({
+            jsonData: this.state.codeMirrorData
+        }, function () {
+            //console.log("Plugin Data Loaded:"+this.state.plugInData.length);
+        });
+    }
     clearButtonClicked(evt){
         this.setState({
-            jsonData: {}
+            jsonData: {
+
+            },
+            app:{
+                parameters : {
+                    name: "CruiseDirector",
+                    id: server.uuidv4()
+                },
+                credentials : {
+                    parameters :{
+                        username:"Admin",
+                        password:"Admin"
+                    }
+                },
+                services: []
+            }
         }, function () {
             //console.log("Plugin Data Loaded:"+this.state.plugInData.length);
         });
     }
     stageButtonClicked(evt){
-        console.log(this.state.application.getApplication());
+        var params = {pluginName: this.state.plugInSelected, action: this.state.plugInActionSelected};
+        
+        for(var i=0;i<this.state.plugInActionParam.length;i++){
+            params[this.state.plugInActionParam[i]['data']['paramName']] = this.state.plugInActionParam[i]['data']['paramDefault'];
+        }
+        var app = this.state.app;
+        app.services.push(params);
+
+        this.setState({
+            jsonData: {},
+        }, function () {
+            this.setState({
+                jsonData: app,
+            }, function () {
+              // console.log("Plugin Data Loaded:\n"+JSON.stringify(this.state.jsonData,null,4));
+        
+            });
+        });
+        
+    }
+    handleJsonEditorChange(values){
+       //console.log('new values'+JSON.stringify(values,null,4));
+        this.setState({jsonData: values});
+    }
+    handlePlugSendJson(response){
+       //console.log(JSON.stringify(response,null,4));
+        this.setState({
+            codeMirrorData: response
+        }, function () {
+            //console.log("Plugin Data Loaded:"+this.state.plugInData.length);
+        });
+        
     }
     sendButtonClicked(evt){
         console.log("Clear");
+        let app = {"application" : this.state.jsonData };
+        //app.push("application", this.state.jsonData);
+        server.postRequest(this.props.s3URL ,this.state.jsonData, this.handlePlugSendJson, this.handleBucketResponseError);
     }
     reloadButtonClicked(evt){
         if(this.state.jsonDataHold){
@@ -109,16 +186,16 @@ export default class CruiseS3 extends React.Component {
         //    pluginActionData: evt 
         //});
 
-        var app = new Application();
+       // var app = new Application();
         for(var x=0;x<this.state.plugInActions.length;x++){
             //console.log(this.state.plugInData[x]);
             //console.log(this.state.plugInData[x].data.plugInMetaData.name+":"+evt.value);
             if(this.state.plugInActions[x].data.actionName === evt.value){
-                console.log(JSON.stringify(this.state.plugInActions[x].data.actionParams,null,4));
+                //console.log(JSON.stringify(this.state.plugInActions[x].data.actionParams,null,4));
                 this.setState({
                     stageButton:false,
-                    application: app,
-                    plugInSelected: evt.value,
+                    //application: app,
+                    plugInActionSelected: evt.value,
                     pluginActionData: this.state.plugInActions[x].data,
                     plugInActionParam: this.state.plugInActions[x].data.actionParams.map((d) => {
                             return {
@@ -229,14 +306,14 @@ export default class CruiseS3 extends React.Component {
             });
     }
     handleS3ResponseError(response){
-          this.setState({
+        this.setState({
             jsonData: [],
             renderJsonEditor:false,
             codeMirrorData: response
-            }, function() {
-               console.log("ERROR: Failed to load error:"+response);
-            });
-    }
+        }, function() {
+           console.log("ERROR: Failed to load error:"+response);
+        });
+}
     getScript(scriptType, scriptParams){
         let scriptOb = undefined;
         if(scriptType==="bucketList"){
@@ -289,69 +366,61 @@ export default class CruiseS3 extends React.Component {
         //console.log(this.state.jsonData);<CruiseModal />
         let self = this;
         return (
-            
-            <Table>
+           <div>
+           <div >
+                <Panel bsStyle="info" >
+                    <Panel.Heading>
+                        <Panel.Title componentClass="h3"><b>Bucket :</b>{this.state.bucketName}&nbsp;<b>Object :</b>{this.state.objectName}</Panel.Title>
+                    </Panel.Heading>
+                    <Panel.Body>
+
+                    <Table ><tbody>
+                        <tr>
+                            <td width="150px" ><div>
+                            {this.state.bucketLoading ? <CruiseSpinner /> : 
+                                    <CruiseS3ListButton 
+                                    key="bucketListButton"
+                                    id="bucketListButton"
+                                    label="Select a Bucket"
+                                    data={self.state.bucketListData}
+                                    listKey="name"
+                                    listItem="name"
+                                    onClicked={self.onBucketClicked} 
+                                    onSelected={self.onBucketSelected} />
+                                }
+                            </div></td>
+                            <td width="150px"><div>
+                                {this.state.objectLoading ? <CruiseSpinner/> : 
+                                    <CruiseS3ListButton 
+                                    key="fileListButton"
+                                    id="fileListbutton"
+                                    label="Select an Object"
+                                    data={self.state.fileListData}
+                                    listKey="key"
+                                    listItem="key"
+                                    onClicked={self.onObjectClicked} 
+                                    onSelected={self.onObjectSelected} />
+                                }
+                                
+
+                            </div></td>
+                            <td width="150px">
+                            <Button bsStyle="primary" disabled={this.state.reloadbutton} onClick={this.reloadButtonClicked} bsSize="small" >Reload From S3</Button>
+                            </td>
+                            <td >
+                            </td>
+                        </tr>
+                        </tbody></Table>
+                    </Panel.Body>
+                </Panel>
+            </div>
+            <Table height="800px">
                 <tbody>
-                    <tr>
-                        <td width="100px" colSpan="3">
-                            <div>
-                                <Panel bsStyle="info">
-                                    <Panel.Heading>
-                                        <Panel.Title componentClass="h3"><b>Bucket :</b>{this.state.bucketName}&nbsp;<b>Object :</b>{this.state.objectName}</Panel.Title>
-                                    </Panel.Heading>
-                                    <Panel.Body>
 
-                                    <Table ><tbody>
-                                        <tr>
-                                            <td width="10%"><div>
-                                            {this.state.bucketLoading ? <CruiseSpinner /> : 
-                                                    <CruiseS3ListButton 
-                                                    key="bucketListButton"
-                                                    id="bucketListButton"
-                                                    label="Select a Bucket"
-                                                    data={self.state.bucketListData}
-                                                    listKey="name"
-                                                    listItem="name"
-                                                    onClicked={self.onBucketClicked} 
-                                                    onSelected={self.onBucketSelected} />
-                                                }
-                                            </div></td>
-                                            <td width="10%"><div>
-                                                {this.state.objectLoading ? <CruiseSpinner/> : 
-                                                    <CruiseS3ListButton 
-                                                    key="fileListButton"
-                                                    id="fileListbutton"
-                                                    label="Select an Object"
-                                                    data={self.state.fileListData}
-                                                    listKey="key"
-                                                    listItem="key"
-                                                    onClicked={self.onObjectClicked} 
-                                                    onSelected={self.onObjectSelected} />
-                                                }
-                                                
+                <tr height="800px">
 
-                                            </div></td>
-                                            <td width="10%">
-                                            <Button bsStyle="primary" disabled={this.state.reloadbutton} onClick={this.reloadButtonClicked} bsSize="small" >Reload From S3</Button>
-                                            </td>
-                                            <td width="50%">
-                                            </td>
-                                        </tr>
-                                        </tbody></Table>
-                                    </Panel.Body>
-                                </Panel>
-                            </div>
-                        </td>
-                    </tr>
-                <tr>
-                    <td width="100px">
-                        <ButtonGroup vertical>
-                            
-                            <Button bsStyle="primary" bsSize="large" block>Send to Server</Button>
-                        </ButtonGroup>;
-                    </td>
-                    <td width="50%">
-                        <div  height="500px" width="100%">
+                    <td width="50%" height="800px">
+                        <div>
                             <Panel bsStyle="info">
                                 <Panel.Heading>
                                     <Panel.Title componentClass="h3"><b>JsonEditor :</b>{this.state.objectName}</Panel.Title>
@@ -376,9 +445,11 @@ export default class CruiseS3 extends React.Component {
                                             <tr>
                                                 <td>
                                                 <Button bsStyle="primary" bsSize="small"  block onClick={this.clearButtonClicked}>Clear JSON</Button>
+                                                <Button bsStyle="primary" bsSize="small"  block onClick={this.displayCodeButtonClicked}>Display Code</Button>
                                                 </td>
                                                 <td>
                                                 <Button bsStyle="primary" bsSize="small" disabled={this.state.stageButton} block onClick={this.stageButtonClicked}>Stage Selected</Button>
+                                                <Button bsStyle="primary" bsSize="small"  block onClick={this.loadCodeButtonClicked}>Load Code Data</Button>
                                                 </td>
                                                 <td>
                                                 <Button bsStyle="primary" bsSize="small" block onClick={this.sendButtonClicked}>Send To Server</Button>
@@ -389,30 +460,31 @@ export default class CruiseS3 extends React.Component {
                                     </Table>
                                     </div>
                                     <div width="100%">
-                                        <CruiseJsonEditor key="S3Editor" objectName={this.state.objectName} data={self.state.jsonData}/>
+                                        <CruiseJsonEditor key="S3Editor" objectName={this.state.objectName} data={self.state.jsonData} onChange={this.handleJsonEditorChange}/>
                                     </div>
                                 </Panel.Body>
                             </Panel>
                         </div>
                     </td>
-                    <td width="100%">
-                        <div  height="500px" width="100%">
-                            <Panel bsStyle="info">
+                    <td width="500px" >
+                        <div >
+                            <Panel bsStyle="info" width="500px">
                                 <Panel.Heading>
                                     <Panel.Title componentClass="h3"><b>Response Display :</b>{this.state.objectName}</Panel.Title>
                                 </Panel.Heading>
-                                <Panel.Body>
-                                    <div width="100%">
-                                        <CruiseCodeMirror data={this.state.codeMirrorData} key="ReturnedCode" />
-                                    </div>
+                                <Panel.Body >
+                                     <CruiseCodeMirror id="FirstCodeWindow" data={this.state.codeMirrorData} key="ReturnedCode" width="500" onChange={this.firstCodeChange}/>
                                 </Panel.Body>
                             </Panel>
                         </div>
                     </td>
+                    <td>
+                   </td>
                 </tr>
             </tbody>
 
             </Table>
+         </div>
         )
     }
 }
